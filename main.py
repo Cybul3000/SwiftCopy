@@ -4,7 +4,7 @@ import re
 import shlex
 from datetime import datetime
 
-from PySide6.QtCore import QProcess, QSettings, QSize, QStandardPaths, Qt, Signal
+from PySide6.QtCore import QProcess, QFileInfo, QSettings, QSize, QStandardPaths, Qt, Signal
 from PySide6.QtGui import QAction, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFileIconProvider,
     QFileSystemModel,
-    QFileInfo,
     QGroupBox,
     QHBoxLayout,
     QAbstractItemView,
