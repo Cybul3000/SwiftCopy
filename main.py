@@ -8,6 +8,7 @@ from PySide6.QtCore import QProcess, QFileInfo, QSettings, QSize, QStandardPaths
 from PySide6.QtGui import QAction, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QAbstractSpinBox,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -319,6 +320,7 @@ class MainWindow(QMainWindow):
         self.retry_count = QSpinBox()
         self.retry_count.setRange(0, 100)
         self.retry_count.setValue(3)
+        self.retry_count.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.retry_dec = QPushButton("-")
         self.retry_inc = QPushButton("+")
         self.retry_dec.setFixedWidth(24)
@@ -328,6 +330,7 @@ class MainWindow(QMainWindow):
         self.wait_time = QSpinBox()
         self.wait_time.setRange(0, 600)
         self.wait_time.setValue(5)
+        self.wait_time.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.wait_dec = QPushButton("-")
         self.wait_inc = QPushButton("+")
         self.wait_dec.setFixedWidth(24)
