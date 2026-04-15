@@ -2,9 +2,10 @@ import html
 import os
 import re
 import shlex
+import time
 from datetime import datetime
 
-from PySide6.QtCore import QProcess, QFileInfo, QSettings, QStandardPaths, Qt, Signal, QUrl
+from PySide6.QtCore import QPointF, QProcess, QFileInfo, QSettings, QStandardPaths, Qt, Signal, QUrl
 from PySide6.QtGui import (
     QAction,
     QColor,
@@ -15,6 +16,7 @@ from PySide6.QtGui import (
     QKeySequence,
     QPainter,
     QPixmap,
+    QPolygonF,
     QShortcut,
 )
 from PySide6.QtWidgets import (
@@ -121,6 +123,50 @@ def _build_splash_pixmap() -> QPixmap:
 
     painter.end()
     return pixmap
+
+
+# ---------------------------------------------------------------------------
+# App icon (programmatic, no external file needed)
+# ---------------------------------------------------------------------------
+
+def _build_app_icon() -> QIcon:
+    """Draw a copy-arrow icon at multiple resolutions for crisp rendering at all DPI."""
+    icon = QIcon()
+    for size in (16, 32, 48, 64, 128, 256):
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.transparent)
+        p = QPainter(pixmap)
+        p.setRenderHint(QPainter.Antialiasing)
+        s = float(size)
+
+        # Rounded-square background
+        p.setBrush(QColor("#1a2332"))
+        p.setPen(Qt.NoPen)
+        r = s * 0.18
+        p.drawRoundedRect(0, 0, size, size, r, r)
+
+        # Arrow shaft (horizontal rectangle, left-of-center)
+        p.setBrush(QColor("#58a6ff"))
+        shaft_x = s * 0.14
+        shaft_y = s * 0.43
+        shaft_w = s * 0.46
+        shaft_h = s * 0.14
+        p.drawRect(int(shaft_x), int(shaft_y), int(shaft_w), int(shaft_h))
+
+        # Arrow head (right-pointing triangle)
+        cx   = s * 0.60
+        cy   = s * 0.50
+        tip  = s * 0.86
+        half = s * 0.26
+        p.drawPolygon(QPolygonF([
+            QPointF(cx, cy - half),
+            QPointF(tip, cy),
+            QPointF(cx, cy + half),
+        ]))
+
+        p.end()
+        icon.addPixmap(pixmap)
+    return icon
 
 
 # ---------------------------------------------------------------------------
@@ -680,6 +726,13 @@ class MainWindow(QMainWindow):
 
     def _build_menu_bar(self) -> None:
         menubar = self.menuBar()
+
+        file_menu = menubar.addMenu("&File")
+        quit_action = QAction("Quit…", self)
+        quit_action.setShortcut(QKeySequence("Ctrl+Q"))
+        quit_action.triggered.connect(self._quit_confirmed)
+        file_menu.addAction(quit_action)
+
         help_menu = menubar.addMenu("&Help")
 
         guide_action = QAction("User Guide\tF1", self)
@@ -1313,7 +1366,29 @@ class MainWindow(QMainWindow):
             return "move"
         return None
 
+    def _quit_confirmed(self) -> None:
+        if self.process.state() != QProcess.NotRunning:
+            reply = QMessageBox.question(
+                self, "Quit SwiftCopy",
+                "A copy job is still running. Quit anyway?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                return
+        QApplication.quit()
+
     def closeEvent(self, event) -> None:
+        if self.process.state() != QProcess.NotRunning:
+            reply = QMessageBox.question(
+                self, "Quit SwiftCopy",
+                "A copy job is still running. Quit anyway?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                event.ignore()
+                return
         self.settings.setValue("paths/left", self.left_pane.path_edit.text().strip())
         self.settings.setValue("paths/right", self.right_pane.path_edit.text().strip())
         super().closeEvent(event)
@@ -1362,13 +1437,22 @@ def main() -> None:
     app = QApplication([])
     app.setStyleSheet(dark_theme_stylesheet())
 
-    # Splash screen
-    splash_pix = _build_splash_pixmap()
-    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+    icon = _build_app_icon()
+    app.setWindowIcon(icon)
+
+    # Splash screen — visible for at least 3 seconds
+    splash = QSplashScreen(_build_splash_pixmap(), Qt.WindowStaysOnTopHint)
     splash.show()
     app.processEvents()
+    t_end = time.monotonic() + 3.0
 
     window = MainWindow()
+    window.setWindowIcon(icon)
+
+    # Hold splash for the remainder of the 3 s while keeping UI responsive
+    while time.monotonic() < t_end:
+        app.processEvents()
+
     window.show()
     splash.finish(window)
 
